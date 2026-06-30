@@ -10,6 +10,8 @@ dotenv()
 
 model = ChatOpenAI(model_name="gpt-4.1-mini",temperature=0)
 
+
+@tool
 def fetch_aws_rss_feed() ->str:
     """"
     Fetch AWS Services status RSS feed and the content of the feed"""
@@ -27,6 +29,35 @@ def fetch_aws_rss_feed() ->str:
     for entry in feed.entries:
         summaries.append(f"Title :{entry.title}\ndescription: {entry.description} \nlink: {entry.link}")
         return "\n".join(summaries)
+    
+
+
+
+@tool
+def get_azure_status_rss()->str:
+    """"
+    Fetch AZURE Services status RSS feed and the content of the feed
+    """
+    feed = parse("https://azure.status.microsoft/en-us/status/feed")
+
+        # detect any network error
+    if feed.bozo:
+        return "Error fetching AZURE RSS feed."
+    
+    if not feed.entries:
+        return "AZURE is operational RSS feed."
+    
+    summaries = []
+    for entry in feed.entries:
+        summaries.append(f"Title :{entry.title}\ndescription: {entry.description} \nlink: {entry.link}")
+        return "\n".join(summaries)
+
+
+
+
+   
+
+
 
 SYSTEM_PROMPT = """
 You are a cloud and service incident monitoring AI.
@@ -61,26 +92,28 @@ NOTIFICATION RULES:
 - Send notifications via Slack and Email.
 - Ignore rumors or unverified reports.
 
-OUTPUT FORMAT:
+OUTPUT FORMAT (FOR Each Services):
 
-Service:
-cloudServiceName:
-Region:
-IncidentType:
-Severity:
-Confidence:
-Notify:
-Summary:
-Solution:
+Service: Name of the service AWS and AZURE
+cloudServiceName:Name of the service AWS and AZURE
+Region: if mentioned , else unknown
+IncidentType: outage | degradation|security | maintenance | normal 
+Severity: 1(low) - 5 (critical)
+Confidence: 100%
+Notify: Yes | no
+Summary: Concise explanation from rss
+Solution: Yes
+
 
 Be conservative.
 Accuracy is more important than speed.
 """
 
 
+
 agent = create_agent(
     model=model,
-    tools =[],
+    tools =[fetch_aws_rss_feed, get_azure_status_rss],
     system_prompt=SYSTEM_PROMPT
 )
 
